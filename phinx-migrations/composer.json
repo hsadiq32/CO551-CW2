@@ -1,0 +1,6 @@
+{
+    "require": {
+        "robmorgan/phinx": "^0.12.10",
+        "fakerphp/faker": "^1.19"
+    }
+}

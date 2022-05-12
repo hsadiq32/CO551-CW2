@@ -22,25 +22,37 @@ if (isset($_SESSION['id'])) {
       $sql .= "county ='" . $_POST['txtcounty']  . "',";
       $sql .= "country ='" . $_POST['txtcountry']  . "',";
       $sql .= "postcode ='" . $_POST['txtpostcode']  . "' ";
-      $sql .= "where studentid = '" . $_SESSION['id'] . "';";
+      $sql .= "where studentid = '" .  $_POST['studentid'] . "';";
       $result = mysqli_query($conn,$sql);
 
-      $data['content'] = "<p>Your details have been updated</p>";
+      $data['content'] = "<p>Details have been updated</p>";
 
    }
    else {
       // Build a SQL statment to return the student record with the id that
       // matches that of the session variable.
-      $sql = "select * from student where studentid='". $_SESSION['id'] . "';";
+      $sqlQuery = $_SESSION['id'];
+      $htmlHeading = "My";
+      $switchVerify = false;
+      if(isset($_GET["id"])){
+         $sqlQuery = $_GET["id"]; // can switch between personal and external details
+         $switchVerify = true;
+      };
+
+      $sql = "select * from student where studentid='". $sqlQuery . "';";
       $result = mysqli_query($conn,$sql);
       $row = mysqli_fetch_array($result);
+
+      if($switchVerify && $sqlQuery != $_SESSION['id']){
+         $htmlHeading = $row['firstname']."'s"; // custom HTML content for viewing other students data
+      }
 
       // using <<<EOD notation to allow building of a multi-line string
       // see http://stackoverflow.com/questions/6924193/what-is-the-use-of-eod-in-php for info
       // also http://stackoverflow.com/questions/8280360/formatting-an-array-value-inside-a-heredoc
       $data['content'] = <<<EOD
 
-   <h2>My Details</h2>
+   <h2>$htmlHeading Details</h2>
    <form name="frmdetails" action="" method="post">
    First Name :
    <input name="txtfirstname" type="text" value="{$row['firstname']}" /><br/>
@@ -56,6 +68,7 @@ if (isset($_SESSION['id'])) {
    <input name="txtcountry" type="text"  value="{$row['country']}" /><br/>
    Postcode :
    <input name="txtpostcode" type="text"  value="{$row['postcode']}" /><br/>
+   <input type="hidden" name="studentid" value="$sqlQuery">
    <input type="submit" value="Save" name="submit"/>
    </form>
 
