@@ -21,11 +21,15 @@ function validatelogin($id,$password) {
 	// use PHP's verify_password function to check whether the stored
 	// hash matches the given password
 	if (password_verify($password, $studentdetails['password'])) {
+      $_SESSION['firstname'] = $studentdetails['firstname'];
+      $_SESSION['lastname'] = $studentdetails['lastname'];
 		$_SESSION['id'] = $id;
 		return true;
 	}
 	else {
 		$_SESSION['id'] = '';
+      $_SESSION['firstname'] = '';
+      $_SESSION['lastname'] = '';
 		return false;
 	}
 }

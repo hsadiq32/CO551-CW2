@@ -1,10 +1,7 @@
 <?php
-
    include("_includes/config.inc");
    include("_includes/dbconnect.inc");
    include("_includes/functions.inc");
-
-
    // check logged in
    if (isset($_SESSION['id'])) {
 
@@ -16,7 +13,6 @@
           }
     }
       header("Location: students.php"); // optimised fallback for redirection
-
    } else {
       header("Location: index.php");
    }

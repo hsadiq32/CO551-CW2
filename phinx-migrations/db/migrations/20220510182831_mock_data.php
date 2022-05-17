@@ -24,7 +24,7 @@ final class MockData extends AbstractMigration
         $x = 1;
         while($x <= 20) {
             $mockData[] = array(
-                'studentid'  => $faker->unique()->ean8, // 8 digit ID
+                'studentid'  => $faker->unique()->ean8, // unique 8 digit ID
                 'password'  => $faker->password(), // random password password_hash() implmentation?
                 'dob'  => $faker->dateTimeBetween('1950-01-01', '2013-12-31')
                 ->format('Y-m-d'), // formatted date
