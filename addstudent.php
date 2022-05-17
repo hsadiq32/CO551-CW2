@@ -28,7 +28,6 @@ if (isset($_SESSION['id'])) {
 
       $studentid = $_POST['studentid'];
       $image = $_FILES['image']['tmp_name']; 
-      $imagedata = 0;
       $dob = new DateTime($_POST['dob']);
       $input_collection = array(
          $_POST['firstname'], 
@@ -58,7 +57,6 @@ if (isset($_SESSION['id'])) {
          switch (mime_content_type($image)) {
             case "image/jpeg":
             case "image/png": // allows only jpeg and pngs
-               $imagedata = "'".addslashes(fread(fopen($image, "r"), filesize($image)))."'";
                break;
             default:
                $image_flag = true;
@@ -69,22 +67,22 @@ if (isset($_SESSION['id'])) {
          //hash password
          $hashed_password = "'".password_hash($_POST['password'], PASSWORD_DEFAULT)."'";
          // build an sql statment to insert the student details
-         $sql = "INSERT INTO student (studentid, firstname, lastname, dob, 
-         password, house, town, county, country, postcode, image)
-               VALUES (
-                   $studentid,
-                  '$_POST[firstname]', 
-                  '$_POST[lastname]', 
-                  '$_POST[dob]', 
-                   $hashed_password, 
-                  '$_POST[house]', 
-                  '$_POST[town]', 
-                  '$_POST[county]', 
-                  '$_POST[country]', 
-                  '$_POST[postcode]',
-                   $imagedata
-                  )"; 
-         $result = mysqli_query($conn,$sql);
+         $sqlimage = 0;
+         $stmt = $conn->prepare("INSERT INTO student (studentid, password, firstname, lastname, dob, house, town, county, country, postcode, image) VALUES(?,?,?,?,?,?,?,?,?,?,?)");
+         $stmt->bind_param("ssssssssssb", $studentid, $password, $firstname, $lastname, $dob, $house, $town, $county, $country, $postcode, $sqlimage);
+         $password = $hashed_password;
+         $firstname = $_POST['firstname'];
+         $lastname = $_POST['lastname'];
+         $dob = $dob->format('Y-m-d');
+         $house = $_POST['house'];
+         $town = $_POST['town'];
+         $county = $_POST['county'];
+         $country = $_POST['country'];
+         $postcode = $_POST['postcode'];
+         if($image){
+            $stmt->send_long_data(10, file_get_contents($image));
+         }
+         $stmt->execute();
          // output success and link redirect to student page
          $data['content'] = "<p style='color:green'>
          Success: $_POST[firstname] $_POST[lastname]'s record has been added 

@@ -55,7 +55,6 @@ if (isset($_SESSION['id'])) {
          switch (mime_content_type($image)) {
             case "image/jpeg":
             case "image/png": // allows only jpeg and pngs
-               $imagedata = "'".addslashes(fread(fopen($image, "r"), filesize($image)))."'";
                break;
             default:
                $image_flag = true;
@@ -64,22 +63,21 @@ if (isset($_SESSION['id'])) {
        if ($dob && (new DateTime())->diff($dob)->y < 16){$dob_flag = true;}
        if(!$null_flag && !$id_syntax_flag && !$image_flag && !$dob_flag){
          // build an sql statment to update the student details
-         $sql = "update student set firstname ='" . $_POST['firstname'] . "',";
-         $sql .= "lastname ='" . $_POST['lastname']  . "',";
-         $sql .= "dob ='" . $_POST['dob']  . "',";
-         $sql .= "house ='" . $_POST['house']  . "',";
-         $sql .= "town ='" . $_POST['town']  . "',";
-         $sql .= "county ='" . $_POST['county']  . "',";
-         $sql .= "country ='" . $_POST['country']  . "',";
-         $sql .= "postcode ='" . $_POST['postcode']  . "'";
-         if($imagedata != 0){
-            $sql .= ", image = " .  $imagedata . " ";
+         $sqlimage = 0;
+         $stmt = $conn->prepare("UPDATE student SET firstname=?, lastname=?, dob=?, house=?, town=?, county=?, country=?, postcode=?, image=? WHERE studentid = ?");
+         $stmt->bind_param("ssssssssbs", $firstname, $lastname, $dob, $house, $town, $county, $country, $postcode, $sqlimage, $studentid);
+         $firstname = $_POST['firstname'];
+         $lastname = $_POST['lastname'];
+         $dob = $dob->format('Y-m-d');
+         $house = $_POST['house'];
+         $town = $_POST['town'];
+         $county = $_POST['county'];
+         $country = $_POST['country'];
+         $postcode = $_POST['postcode'];
+         if($image){
+            $stmt->send_long_data(8, file_get_contents($image));
          }
-         else{
-            $sql .= " ";
-         }
-         $sql .= "where studentid = '" . $_POST['studentid'] ."';";
-         $result = mysqli_query($conn,$sql);
+         $stmt->execute();
          if($_SESSION['id'] == $studentid){
             $_SESSION['firstname'] = $_POST['firstname'];
             $_SESSION['lastname'] = $_POST['lastname'];
@@ -109,93 +107,103 @@ if (isset($_SESSION['id'])) {
          $switchVerify = true;
       };
 
-      $sql = "select * from student where studentid='". $sqlQuery . "';";
-      $result = mysqli_query($conn,$sql);
-      $row = mysqli_fetch_array($result);
+      $stmt = $conn->prepare("SELECT * FROM student WHERE studentid = ?");
+      $stmt->bind_param("s", $sqlQuery);
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $row = $result->fetch_assoc();
 
-      if($switchVerify && $sqlQuery != $_SESSION['id']){
-         $htmlHeading = $row['firstname']."'s"; // custom HTML content for viewing other students data
-      }
-
-      $linkbuilder = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-
-      // using <<<EOD notation to allow building of a multi-line string
-      // see http://stackoverflow.com/questions/6924193/what-is-the-use-of-eod-in-php for info
-      // also http://stackoverflow.com/questions/8280360/formatting-an-array-value-inside-a-heredoc
-      $data['content'] = <<<EOD
-   <div class="container"
-   style="max-width: 600px;margin-top:50px;margin-bottom:50px;">
-   <div class="card back-light border-outline" style="border-radius: 8px;box-shadow: 0px 0px 20px rgba(0,0,0,0.1);">
-      <div class="card-body" style="padding-top: 0px;">
-         <h4 class="card-title" style="text-align: center;margin-top: 40px;margin-bottom: 30px;"><b>$htmlHeading Details</b></h4>
-         <form name="frmdetails" enctype="multipart/form-data" action="$linkbuilder" method="post">
-         <div class="back-dark border-outline" style="display: flex;flex-direction: column;width: 50%;min-width: 150px;padding: 15px;border-radius: 6px;margin: auto;">
-            <img id="userImg" src='getimg.php?id={$row['studentid']}' style='width:120px;height:120px;object-fit: cover;border-radius:6px;margin: auto; margin-bottom: 6px;' 
-            onError="this.onerror=null;this.src='img/image_placeholder.png'">
-            <input name="image" id="fileinput" type="file" accept="image/png, image/jpeg" style="display:none;"/>
-            <label for="fileinput" class="btn btn-secondary">Upload Image</label>
+      if(isset($row['studentid'])){
+         if($switchVerify && $sqlQuery != $_SESSION['id']){
+            $htmlHeading = $row['firstname']."'s"; // custom HTML content for viewing other students data
+         }
+   
+         $linkbuilder = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+         // using <<<EOD notation to allow building of a multi-line string
+         // see http://stackoverflow.com/questions/6924193/what-is-the-use-of-eod-in-php for info
+         // also http://stackoverflow.com/questions/8280360/formatting-an-array-value-inside-a-heredoc
+         $data['content'] = <<<EOD
+      <div class="container"
+      style="max-width: 600px;margin-top:50px;margin-bottom:50px;">
+      <div class="card back-light border-outline" style="border-radius: 8px;box-shadow: 0px 0px 20px rgba(0,0,0,0.1);">
+         <div class="card-body" style="padding-top: 0px;">
+            <h4 class="card-title" style="text-align: center;margin-top: 40px;margin-bottom: 30px;"><b>$htmlHeading Details</b></h4>
+            <form name="frmdetails" enctype="multipart/form-data" action="$linkbuilder" method="post">
+            <div class="back-dark border-outline" style="display: flex;flex-direction: column;width: 50%;min-width: 150px;padding: 15px;border-radius: 6px;margin: auto;">
+               <img id="userImg" src='getimg.php?id={$row['studentid']}' style='width:120px;height:120px;object-fit: cover;border-radius:6px;margin: auto; margin-bottom: 6px;' 
+               onError="this.onerror=null;this.src='img/image_placeholder.png'">
+               <input name="image" id="fileinput" type="file" accept="image/png, image/jpeg" style="display:none;"/>
+               <label for="fileinput" class="btn btn-secondary">Upload Image</label>
+            </div>
+               <div class="row">
+                  <div class="col-sm">
+                  <label>First Name</label>
+                  <input name="firstname" type="text" value="{$row['firstname']}" class="form-control input-text back-dark" placeholder="First Name">
+                  </div>
+                  <div class="col-sm">
+                  <label>Last Name</label>
+                  <input name="lastname" type="text" value="{$row['lastname']}" class="form-control input-text back-dark" placeholder="Last Name">
+                  </div>
+               </div>
+               <div class="row">
+                  <div class="col-sm">
+                  <label>D.O.B.</label>
+                  <input name="dob" type="date" value="{$row['dob']}" class="form-control input-text back-dark" placeholder="Date of Birth">
+                  </div>
+                  <div class="col-sm">
+                  <label>Address</label>
+                  <input name="house" value="{$row['house']}" class="form-control input-text back-dark" type="text" placeholder="Address">
+                  </div>
+               </div>
+               <div class="row">
+                  <div class="col-sm">
+                  <label>Postcode</label>
+                  <input name="postcode" value="{$row['postcode']}" class="form-control input-text back-dark" type="text" placeholder="Postcode">
+                  </div>
+                  <div class="col-sm">
+                  <label>Town</label>
+                  <input name="town" value="{$row['town']}" class="form-control input-text back-dark" type="text" placeholder="Town">
+                  </div>
+               </div>
+               <div class="row">
+                  <div class="col-sm">
+                  <label>County</label>
+                  <input name="county" value="{$row['county']}" class="form-control input-text back-dark" type="text" placeholder="County">
+                  </div>
+                  <div class="col-sm">
+                  <label>Country</label>
+                  <input name="country" value="{$row['country']}" class="form-control input-text back-dark" type="text" placeholder="Country">
+                  </div>
+               </div>
+               <label>Student ID</label>
+               <input name="studentid" class="form-control input-text back-light" type="text" value="{$row['studentid']}" readonly>
+               <div class="d-flex content-align-center">
+                  <input type="submit" value="Submit" name="submit" class="btn btn-success" style="margin-bottom: 10px;margin-top:30px;margin-left:auto;margin-right:auto;"/>
+               </div>
+            </form>
+            <p style="text-align:center">$message</p>
          </div>
-            <div class="row">
-               <div class="col-sm">
-               <label>First Name</label>
-               <input name="firstname" type="text" value="{$row['firstname']}" class="form-control input-text back-dark" placeholder="First Name">
-               </div>
-               <div class="col-sm">
-               <label>Last Name</label>
-               <input name="lastname" type="text" value="{$row['lastname']}" class="form-control input-text back-dark" placeholder="Last Name">
-               </div>
-            </div>
-            <div class="row">
-               <div class="col-sm">
-               <label>D.O.B.</label>
-               <input name="dob" type="date" value="{$row['dob']}" class="form-control input-text back-dark" placeholder="Date of Birth">
-               </div>
-               <div class="col-sm">
-               <label>Address</label>
-               <input name="house" value="{$row['house']}" class="form-control input-text back-dark" type="text" placeholder="Address">
-               </div>
-            </div>
-            <div class="row">
-               <div class="col-sm">
-               <label>Postcode</label>
-               <input name="postcode" value="{$row['postcode']}" class="form-control input-text back-dark" type="text" placeholder="Postcode">
-               </div>
-               <div class="col-sm">
-               <label>Town</label>
-               <input name="town" value="{$row['town']}" class="form-control input-text back-dark" type="text" placeholder="Town">
-               </div>
-            </div>
-            <div class="row">
-               <div class="col-sm">
-               <label>County</label>
-               <input name="county" value="{$row['county']}" class="form-control input-text back-dark" type="text" placeholder="County">
-               </div>
-               <div class="col-sm">
-               <label>Country</label>
-               <input name="country" value="{$row['country']}" class="form-control input-text back-dark" type="text" placeholder="Country">
-               </div>
-            </div>
-            <label>Student ID</label>
-            <input name="studentid" class="form-control input-text back-light" type="text" value="{$row['studentid']}" readonly>
-            <div class="d-flex content-align-center">
-               <input type="submit" value="Submit" name="submit" class="btn btn-success" style="margin-bottom: 10px;margin-top:30px;margin-left:auto;margin-right:auto;"/>
-            </div>
-         </form>
-         <p style="text-align:center">$message</p>
       </div>
    </div>
-</div>
-<script src="js/image.js"></script>
-EOD;
-
+   <script src="js/image.js"></script>
+   EOD;
+      }
+      else{
+         $data['content'] = <<<EOD
+         <div class="container" style="max-width: 600px;margin-top:50px;margin-bottom:50px;">
+            <div class="card back-light border-outline" style="border-radius: 8px;box-shadow: 0px 0px 20px rgba(0,0,0,0.1);">
+               <div class="card-body" style="padding-top: 0px;">
+                  <h5 style="margin-top:25px; text-align:center;"><b>Error: Invalid Link</b></h5>
+                  </div>
+               </div>
+            </div>
+      EOD;
+      }
 
    // render the template
    echo template("templates/default.php", $data);
-
 } else {
    header("Location: index.php");
 }
-
 echo template("templates/partials/footer.php");
-
 ?>
